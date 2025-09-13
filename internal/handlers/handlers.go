@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Adit0507/image-processing-tool/internal/config"
+	"github.com/Adit0507/image-processing-tool/internal/models"
 	"github.com/Adit0507/image-processing-tool/internal/services"
 	"github.com/Adit0507/image-processing-tool/internal/utils"
 )
@@ -94,4 +96,69 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) Process(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req models.ProcessRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+	}
+
+	inputPath := filepath.Join(h.config.UploadDir, req.Filename)
+	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
+		http.Error(w, "File not found", http.StatusNotFound)
+		return
+	}
+
+	// generatte output filenames
+	outputFilename := utils.GenerateProcessedFilename(req.Filename)
+	outputPath := filepath.Join(h.config.UploadDir, outputFilename)
+
+	// convert operations
+	var operations []models.Operation
+	for _, op := range req.Operations {
+		operations = append(operations, models.Operation{
+			Type:   models.OperationType(op.Type),
+			Params: op.Params,
+		})
+	}
+
+	// creatin processing job
+	resultChan := make(chan models.ProcessingResult, 1)
+	job := models.ProcessingJob{
+		ID:         utils.GenerateJobID(),
+		InputPath:  inputPath,
+		OutputPath: outputPath,
+		Operations: operations,
+		ResultChan: resultChan,
+	}
+
+	h.workerPool.SubmitJob(job)
+
+	// waiitn for result
+	select {
+	case result := <-resultChan:
+		if !result.Success {
+			log.Printf("Processing error: %v", result.Error)
+			http.Error(w, "Processing failed", http.StatusInternalServerError)
+			return
+		}
+
+		response := models.ProcessResponse{
+			Success:     true,
+			Message:     "Image processed successfully",
+			DownloadURL: "/download/" + outputFilename,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+
+	case <-time.After(30 * time.Second):
+		http.Error(w, "Processing timeout", http.StatusRequestTimeout)
+	}
 }
