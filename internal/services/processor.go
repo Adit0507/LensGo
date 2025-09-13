@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 
 	"strings"
+
+	"github.com/Adit0507/image-processing-tool/pkg/filters"
 )
 
 type ImageProcessor struct{}
@@ -49,4 +51,16 @@ func (p *ImageProcessor) SaveImage(img image.Image, filePath string) error{
 	default:
 		return jpeg.Encode(file, img, &jpeg.Options{Quality: 90})
 	}
+} 
+
+func (p *ImageProcessor) Resize(img image.Image, width, height int) image.Image {
+	return filters.Resize(img, width, height)
+}
+
+func (p *ImageProcessor) Grayscale(img image.Image) image.Image {
+	return filters.Grayscale(img)
+}
+
+func (p *ImageProcessor) Blur(img image.Image, radius float64) image.Image {
+	return filters.Blur(img, radius)
 }
