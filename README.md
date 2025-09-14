@@ -2,6 +2,11 @@
 
 A concurrent image processing tool built in Go, designed to explore parallel processing. It provides a simple web interface for uploading images, applying filters, resizing, and downloading processed results  all powered by a worker pool concurrency model. 
 
+
+## Demo
+https://github.com/user-attachments/assets/e2f8a920-15a0-449e-a6b7-77ef02d0190a
+
+
 ## ✨ Features
 - 🖼️ Image Resizing
    - Bilinear
@@ -77,7 +82,4 @@ go run cmd/server/main.go
 
 - Download results
 
-## Demo
-
-https://github.com/user-attachments/assets/e2f8a920-15a0-449e-a6b7-77ef02d0190a
 
