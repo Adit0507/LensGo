@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Adit0507/image-processing-tool/internal/config"
@@ -161,4 +163,24 @@ func (h *Handler) Process(w http.ResponseWriter, r *http.Request) {
 	case <-time.After(30 * time.Second):
 		http.Error(w, "Processing timeout", http.StatusRequestTimeout)
 	}
+}
+
+func (h *Handler) Download(w http.ResponseWriter, r *http.Request) {
+	filename := strings.TrimPrefix(r.URL.Path, "/download/")
+	if filename == ""{
+		http.Error(w, "Filename required", http.StatusBadRequest)
+		return
+	}
+
+	filePath := filepath.Join(h.config.UploadDir, filename)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		http.NotFound(w, r)
+		return
+	}
+
+	// appropriate headers
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	w.Header().Set("Content-Type", "application/octet-stream")
+
+	http.ServeFile(w, r, filePath)
 }
